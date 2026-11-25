@@ -52,13 +52,15 @@ jobs:
           set -euo pipefail
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
           sdkmanager --install 'emulator' 'system-images;android-33;google_apis;x86_64' > "$RUNNER_TEMP/image.log"
-          echo no | avdmanager create avd -n menu -k 'system-images;android-33;google_apis;x86_64'
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/menu-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd -p "$ANDROID_AVD_HOME/menu.avd" -n menu -k 'system-images;android-33;google_apis;x86_64'
           sudo chmod 666 /dev/kvm
           df -h "$RUNNER_TEMP"
           test -x "$ANDROID_HOME/emulator/emulator"
-          echo 'disk.dataPartition.size=768M' >> "$HOME/.android/avd/menu.avd/config.ini"
+          echo 'disk.dataPartition.size=768M' >> "$ANDROID_AVD_HOME/menu.avd/config.ini"
           adb start-server
-          "$ANDROID_HOME/emulator/emulator" -memory 1536 -cores 2 -partition-size 768 -accel on -avd menu -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          "$ANDROID_HOME/emulator/emulator" -memory 1536 -cores 2 -partition-size 768 -accel on -avd menu -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader > "$RUNNER_TEMP/emulator.log" 2>&1 &
           emu_pid=$!
           trap 'tail -50 "$RUNNER_TEMP/emulator.log"' EXIT
           sleep 6
@@ -83,7 +85,8 @@ jobs:
           adb shell dumpsys accessibility > "$RUNNER_TEMP/accessibility.txt"
           grep -q MenuService "$RUNNER_TEMP/accessibility.txt"
           adb exec-out screencap -p > "$RUNNER_TEMP/on.png"
-          /usr/bin/python3 - <<'PY'
+          python3 -c 'import PIL' || python3 -m pip install Pillow
+          python3 - <<'PY'
           import os, re, xml.etree.ElementTree as ET
           from pathlib import Path
           from PIL import Image
