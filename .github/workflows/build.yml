@@ -2,7 +2,7 @@ name: Android APK bauen
 on:
   push:
     paths:
-      - Beamer-Deutsch-Android-Projekt.zip.b64
+      - Beamer-Deutsch-Android-Projekt-1.1.zip.b64
       - .github/workflows/build.yml
   workflow_dispatch:
 permissions:
@@ -24,23 +24,23 @@ jobs:
           export PATH="$JAVA_HOME/bin:$PATH"
           test -f "$ANDROID_HOME/platforms/android-35/android.jar"
           test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          archive="$RUNNER_TEMP/Beamer-Deutsch-Android-Projekt.zip"
-          base64 --decode Beamer-Deutsch-Android-Projekt.zip.b64 > "$archive"
-          printf '%s  %s\n' 'e9aae8b9fbf592aa69ae0bc643c8eefd1b35b9d400ded9d2695665bb6a02bdf6' "$archive" | sha256sum --check
+          archive="$RUNNER_TEMP/Beamer-Deutsch-Android-Projekt-1.1.zip"
+          base64 --decode Beamer-Deutsch-Android-Projekt-1.1.zip.b64 > "$archive"
+          printf '%s  %s\n' 'd96d193baeb6b8e2c190cbf9358be34bcfc15f8634fbd42407a98c7e3fbd62e7' "$archive" | sha256sum --check
           unzip -q "$archive" -d "$RUNNER_TEMP"
           curl --fail --silent --show-error --location --retry 3 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output "$RUNNER_TEMP/gradle-8.9-bin.zip"
           (cd "$RUNNER_TEMP" && echo "d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab  gradle-8.9-bin.zip" | sha256sum --check)
           unzip -q "$RUNNER_TEMP/gradle-8.9-bin.zip" -d "$RUNNER_TEMP"
           project="$RUNNER_TEMP/Beamer-Deutsch"
           "$RUNNER_TEMP/gradle-8.9/bin/gradle" --no-daemon --console=plain --project-dir "$project" :app:assembleDebug
-          cp "$project/app/build/outputs/apk/debug/app-debug.apk" Beamer-Deutsch.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Beamer-Deutsch.apk
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Beamer-Deutsch.apk | grep -E "^package:|^sdkVersion:|^targetSdkVersion:|^native-code:"
-          sha256sum Beamer-Deutsch.apk
+          cp "$project/app/build/outputs/apk/debug/app-debug.apk" Beamer-Deutsch-1.1.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Beamer-Deutsch-1.1.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Beamer-Deutsch-1.1.apk | grep -E "^package:|^sdkVersion:|^targetSdkVersion:|^native-code:"
+          sha256sum Beamer-Deutsch-1.1.apk
       - name: APK bereitstellen
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: Beamer-Deutsch-APK
-          path: Beamer-Deutsch.apk
+          name: Beamer-Deutsch-1.1-APK
+          path: Beamer-Deutsch-1.1.apk
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
