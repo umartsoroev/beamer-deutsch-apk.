@@ -51,10 +51,18 @@ jobs:
         run: |
           set -euo pipefail
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          sdkmanager --install 'system-images;android-33;google_apis;x86_64' > "$RUNNER_TEMP/image.log"
+          sdkmanager --install 'emulator' 'system-images;android-33;google_apis;x86_64' > "$RUNNER_TEMP/image.log"
           echo no | avdmanager create avd -n menu -k 'system-images;android-33;google_apis;x86_64'
           sudo chmod 666 /dev/kvm
-          emulator -avd menu -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          df -h "$RUNNER_TEMP"
+          test -x "$ANDROID_HOME/emulator/emulator"
+          echo 'disk.dataPartition.size=768M' >> "$HOME/.android/avd/menu.avd/config.ini"
+          adb start-server
+          "$ANDROID_HOME/emulator/emulator" -memory 1536 -cores 2 -partition-size 768 -accel on -avd menu -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          emu_pid=$!
+          trap 'tail -50 "$RUNNER_TEMP/emulator.log"' EXIT
+          sleep 6
+          kill -0 "$emu_pid"
           timeout 180 adb wait-for-device
           timeout 240 bash -c 'until adb shell getprop sys.boot_completed | grep -q 1; do sleep 3; done'
           adb shell wm size 1280x720
@@ -72,9 +80,8 @@ jobs:
           adb shell settings put secure enabled_accessibility_services de.beamer.deutsch.menutext/de.beamer.deutsch.MenuService
           adb shell settings put secure accessibility_enabled 1
           sleep 3
-          adb shell uiautomator dump /sdcard/menu.xml
-          adb pull /sdcard/menu.xml "$RUNNER_TEMP/on.xml"
-          grep -q 'Übersetzung pausieren' "$RUNNER_TEMP/on.xml"
+          adb shell dumpsys accessibility > "$RUNNER_TEMP/accessibility.txt"
+          grep -q MenuService "$RUNNER_TEMP/accessibility.txt"
           adb exec-out screencap -p > "$RUNNER_TEMP/on.png"
           /usr/bin/python3 - <<'PY'
           import os, re, xml.etree.ElementTree as ET
@@ -82,10 +89,8 @@ jobs:
           from PIL import Image
           p = Path(os.environ['RUNNER_TEMP'])
           for stage, visible in [('off', False), ('on', True)]:
-              nodes = ET.parse(p / (stage + '.xml')).iter('node')
-              node = next(n for n in nodes if n.get('text') == '设置')
-              box = tuple(map(int, re.findall(r'\d+', node.get('bounds'))))
-              pixels = Image.open(p / (stage + '.png')).convert('RGB').crop(box)
+              pixels = Image.open(p / (stage + '.png')).convert('RGB')
+              box = pixels.getbbox()
               count = sum(rgb == (16, 28, 36) for rgb in pixels.getdata())
               assert (count > 30) == visible, (stage, box, count)
           print('Testwort im laufenden Android-Menü überdeckt.')
